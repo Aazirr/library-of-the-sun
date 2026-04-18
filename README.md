@@ -7,7 +7,8 @@ Starter analytics dashboard for the Ascension portfolio webapp.
 - Next.js App Router starter
 - typed analytics models based on [docs/shared-analytics-spec.md](docs/shared-analytics-spec.md)
 - a first dashboard UI for visitors, engagement, sections, projects, CTA activity, referrers, and a recent event feed
-- mock analytics data shaped like the eventual ingestion payloads
+- a server-side live query layer for Supabase-backed analytics reads
+- mock analytics fallback data when local read credentials are not configured
 
 ## Run Locally
 
@@ -18,12 +19,24 @@ npm run dev
 
 Then open `http://localhost:3000`.
 
+## Live Data Setup
+
+Create `.env.local` with:
+
+```bash
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+ANALYTICS_SOURCE=portfolio
+```
+
+If these values are missing, the dashboard will fall back to mock data so the UI still works locally.
+
 ## Next Build Steps
 
-1. Add a real data source for `analytics_events` and `analytics_sessions`.
-2. Replace mock dashboard aggregates with SQL-backed queries.
-3. Add filtering by date range, device type, and referrer.
-4. Add authentication before exposing production analytics.
+1. Add date-range filtering so the dashboard can focus on recent windows instead of raw fetch limits.
+2. Move heavy aggregations into SQL views or cached endpoints if query volume grows.
+3. Add authentication before exposing production analytics.
+4. Add dashboard-specific empty and error states for lower-volume environments.
 
 ## Shared Contract
 

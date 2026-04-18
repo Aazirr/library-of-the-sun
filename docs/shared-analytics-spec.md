@@ -5,6 +5,7 @@ Related planning docs:
 - [Project Scope](./project-scope.md)
 - [Architecture](./architecture.md)
 - [Development Phases](./development-phases.md)
+- [Tracking Helper Spec](./tracking-helper-spec.md)
 
 This document defines the shared analytics contract for:
 

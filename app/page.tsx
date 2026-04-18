@@ -1,17 +1,17 @@
-import { dashboardSnapshot } from "@/lib/analytics/mock-data";
+import { getDashboardData } from "@/lib/analytics/dashboard";
 
 const panelDescriptions = [
   {
     eyebrow: "Attention map",
     title: "See how visitors move through Ascension",
     copy:
-      "This first cut focuses on the questions from your shared analytics spec: who engages, what gets opened, where interest converts, and which portfolio pieces pull the most attention."
+      "This dashboard is focused on the questions from your shared analytics spec: who engages, what gets opened, where interest converts, and which portfolio pieces pull the most attention."
   },
   {
     eyebrow: "Shared contract",
-    title: "Built to match your event model from day one",
+    title: "Built on the same event model as the portfolio app",
     copy:
-      "Every surface here is shaped around the same `analytics_events` contract you defined, which keeps the eventual ingestion API, Postgres tables, and dashboard queries aligned."
+      "The dashboard reads the same `analytics_events` and `analytics_sessions` data produced by Ascension, which keeps reporting aligned with the producer contract."
   }
 ];
 
@@ -51,7 +51,7 @@ function RankedList({
   title: string;
   items: { label: string; value: number; delta?: string }[];
 }) {
-  const maxValue = Math.max(...items.map((item) => item.value));
+  const maxValue = Math.max(1, ...items.map((item) => item.value));
 
   return (
     <section className="panel">
@@ -86,10 +86,11 @@ function RankedList({
   );
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const { note, snapshot, source } = await getDashboardData();
   const { audience, cta, devices, liveFeed, projects, referrers, sections, timeline } =
-    dashboardSnapshot;
-  const maxTimelineValue = Math.max(...timeline.map((entry) => entry.value));
+    snapshot;
+  const maxTimelineValue = Math.max(1, ...timeline.map((entry) => entry.value));
 
   return (
     <main className="dashboard-shell">
@@ -98,20 +99,20 @@ export default function HomePage() {
           <p className="eyebrow">Ascension Analytics</p>
           <h1>Portfolio intelligence with a product dashboard feel.</h1>
           <p className="hero-text">
-            A starter analytics workspace for your portfolio app, designed around
-            event-driven engagement instead of generic pageview reporting.
+            The first live cut of the analytics website focuses on visitor engagement,
+            content attention, CTA performance, and a raw event feed for validation.
           </p>
           <div className="hero-badges">
             <span>Source: portfolio</span>
             <span>Backed by `analytics_events`</span>
-            <span>Ready for Supabase or Postgres</span>
+            <span>{source === "live" ? "Live Supabase connected" : "Mock fallback active"}</span>
           </div>
         </div>
 
         <aside className="hero-aside">
           <p>Snapshot generated</p>
-          <strong>{formatDate(dashboardSnapshot.generatedAt)}</strong>
-          <span>Current view uses mock data shaped from your shared analytics spec.</span>
+          <strong>{formatDate(snapshot.generatedAt)}</strong>
+          <span>{note}</span>
         </aside>
       </section>
 
@@ -129,7 +130,7 @@ export default function HomePage() {
         <MetricCard
           label="Total visitors"
           value={audience.totalVisitors.toString()}
-          helper="Anonymous visitors during the current sample window."
+          helper="Distinct anonymous visitors from recorded sessions."
         />
         <MetricCard
           label="Engaged visitors"
@@ -144,7 +145,7 @@ export default function HomePage() {
         <MetricCard
           label="Avg session"
           value={`${audience.averageSessionMinutes} min`}
-          helper="Estimated session duration for engaged traffic."
+          helper="Average time between `started_at` and `last_seen_at`."
         />
       </section>
 
@@ -155,7 +156,9 @@ export default function HomePage() {
               <p className="eyebrow">Event timeline</p>
               <h2>Weekly interaction pulse</h2>
             </div>
-            <span className="panel-note">Mock chart, ready for SQL-backed aggregation</span>
+            <span className="panel-note">
+              {source === "live" ? "Computed from live event data" : "Mock chart until Supabase is configured"}
+            </span>
           </div>
 
           <div className="timeline-chart" aria-label="Weekly interaction chart">
@@ -185,7 +188,11 @@ export default function HomePage() {
             <p className="eyebrow">Live feed</p>
             <h2>Recent event payloads</h2>
           </div>
-          <span className="panel-note">Useful for validating ingestion while wiring the API</span>
+          <span className="panel-note">
+            {source === "live"
+              ? "Useful for validating real ingestion activity"
+              : "Useful for validating the dashboard structure before live reads are enabled"}
+          </span>
         </div>
 
         <div className="event-table">

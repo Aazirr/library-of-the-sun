@@ -8,6 +8,25 @@ The general rule is simple:
 
 Data trust comes before dashboard polish.
 
+## Current Status
+
+- Active phase: Phase 3 - Query Layer And Metrics Definition
+- Last completed phase: Phase 2 - Ingestion API And Storage
+- Current focus: replace dashboard mock data with live Supabase reads and turn the first overview screen into a real analytics surface
+
+Current verification status:
+
+- `Ascension` local `/api/track` route accepts valid events and returns `202`
+- payload normalization is working in the local fallback path
+- `Ascension` production is already writing live analytics data to Supabase
+- `Library of the Sun` now has a live-read dashboard data layer with mock fallback when local read credentials are missing
+
+## Repo Context
+
+- Producer app repo: `Ascension`
+- Analytics dashboard repo: `Library of the Sun`
+- Shared contract: [Shared Analytics Spec](./shared-analytics-spec.md)
+
 ## Phase 0: Foundation And Planning
 
 Goal:
@@ -19,7 +38,7 @@ Deliverables:
 - [x] project scope document
 - [x] architecture document
 - [x] phased roadmap
-- [ ] initial repo structure for the analytics app
+- [x] initial repo structure for the analytics app
 
 Exit criteria:
 
@@ -34,20 +53,20 @@ Make the Ascension portfolio emit reliable analytics events.
 
 Deliverables:
 
-- [ ] shared tracking helper
-- [ ] `session_started`
-- [ ] `graph_interaction_started`
-- [ ] section open tracking
-- [ ] project open tracking
-- [ ] CTA click tracking
-- [ ] device type normalization
-- [ ] session and visitor ID management
+- [x] shared tracking helper
+- [x] `session_started`
+- [x] `graph_interaction_started`
+- [x] section open tracking
+- [x] project open tracking
+- [x] CTA click tracking
+- [x] device type normalization
+- [x] session and visitor ID management
 
 Exit criteria:
 
-- [ ] all V1 portfolio interactions emit valid payloads
-- [ ] events follow the shared contract
-- [ ] UI components no longer handcraft analytics payloads
+- [x] all V1 portfolio interactions emit valid payloads
+- [x] events follow the shared contract
+- [x] UI components no longer handcraft analytics payloads
 
 ## Phase 2: Ingestion API And Storage
 
@@ -56,20 +75,20 @@ Accept analytics events safely and persist them in PostgreSQL.
 
 Deliverables:
 
-- [ ] `POST /api/track`
-- [ ] payload validation
-- [ ] server-side normalization where needed
-- [ ] `analytics_events` table
-- [ ] `analytics_sessions` table
-- [ ] indexes for expected query patterns
-- [ ] local and production environment configuration
+- [x] `POST /api/track`
+- [x] payload validation
+- [x] server-side normalization where needed
+- [x] `analytics_events` table
+- [x] `analytics_sessions` table
+- [x] indexes for expected query patterns
+- [x] local and production environment configuration
 
 Exit criteria:
 
-- [ ] valid events are stored successfully
-- [ ] malformed events are rejected predictably
-- [ ] raw metadata is preserved
-- [ ] database writes are stable enough for dashboard development
+- [x] valid events are stored successfully
+- [x] malformed events are rejected predictably
+- [x] raw metadata is preserved
+- [x] database writes are stable enough for dashboard development
 
 ## Phase 3: Query Layer And Metrics Definition
 
@@ -78,18 +97,18 @@ Turn raw events into clear product metrics.
 
 Deliverables:
 
-- [ ] overview query set
-- [ ] engagement query set
-- [ ] section ranking query
-- [ ] project ranking query
-- [ ] CTA query set
-- [ ] device and referrer breakdown queries
-- [ ] timeline query
-- [ ] recent event feed query
+- [x] overview query set
+- [x] engagement query set
+- [x] section ranking query
+- [x] project ranking query
+- [x] CTA query set
+- [x] device and referrer breakdown queries
+- [x] timeline query
+- [x] recent event feed query
 
 Exit criteria:
 
-- [ ] every V1 dashboard card is backed by a real query
+- [x] every V1 dashboard card is backed by a real query
 - [ ] metric definitions are written down and consistent
 - [ ] query results match manual spot checks
 
@@ -151,8 +170,12 @@ These should only start after the ingestion pipeline and V1 dashboard are alread
 
 When we resume implementation, the next practical build order should be:
 
-1. [ ] finalize the tracking helper contract in the portfolio app
-2. [ ] implement `POST /api/track`
-3. [ ] create the database schema
-4. [ ] verify raw events with a recent-event feed
-5. [ ] build the first real overview dashboard from live data
+1. [x] finalize the tracking helper contract in the portfolio app
+2. [x] wire `session_started` into portfolio app initialization
+3. [x] wire `track()` into the first graph interaction event
+4. [x] wire `track()` into section and project open events
+5. [x] wire `track()` into recruiter CTA clicks
+6. [x] implement `POST /api/track`
+7. [x] create the database schema
+8. [x] verify raw events with a recent-event feed
+9. [x] build the first real overview dashboard from live data

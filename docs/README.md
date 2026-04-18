@@ -7,7 +7,8 @@ This folder is the planning and implementation guide for the Ascension analytics
 1. [Project Scope](./project-scope.md)
 2. [Architecture](./architecture.md)
 3. [Development Phases](./development-phases.md)
-4. [Shared Analytics Spec](./shared-analytics-spec.md)
+4. [Tracking Helper Spec](./tracking-helper-spec.md)
+5. [Shared Analytics Spec](./shared-analytics-spec.md)
 
 ## Why These Docs Exist
 
