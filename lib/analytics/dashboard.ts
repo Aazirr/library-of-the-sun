@@ -39,6 +39,22 @@ type AnalyticsSessionRow = {
   source: string;
 };
 
+type AnalyticsSectionOpensRow = {
+  section: string | null;
+  open_count: number;
+};
+
+type AnalyticsProjectOpensRow = {
+  project_id: string | null;
+  title: string | null;
+  open_count: number;
+};
+
+type AnalyticsCtaEventsRow = {
+  event_name: string;
+  total: number;
+};
+
 function getRequiredEnv(name: string) {
   const value = process.env[name];
   return typeof value === "string" && value.length > 0 ? value : null;
@@ -145,7 +161,13 @@ function toAnalyticsEvent(row: AnalyticsEventRow): AnalyticsEvent {
   };
 }
 
-function buildSnapshot(events: AnalyticsEventRow[], sessions: AnalyticsSessionRow[]): DashboardSnapshot {
+function buildSnapshot(
+  events: AnalyticsEventRow[],
+  sessions: AnalyticsSessionRow[],
+  sectionRows: AnalyticsSectionOpensRow[],
+  projectRows: AnalyticsProjectOpensRow[],
+  ctaRows: AnalyticsCtaEventsRow[]
+): DashboardSnapshot {
   const totalVisitors = new Set(sessions.map((session) => session.visitor_id)).size;
   const engagedVisitors = new Set(
     events
@@ -155,34 +177,29 @@ function buildSnapshot(events: AnalyticsEventRow[], sessions: AnalyticsSessionRo
   const interactionRate =
     totalVisitors === 0 ? 0 : Number(((engagedVisitors / totalVisitors) * 100).toFixed(1));
 
-  const ctaEvents = new Set([
-    "hire_me_opened",
-    "resume_clicked",
-    "linkedin_clicked",
-    "github_profile_clicked",
-    "project_github_clicked",
-    "project_live_demo_clicked",
-    "email_clicked"
-  ]);
-
-  const sections = toRankedMetrics(
-    groupCounts(
-      events.filter((event) => event.event_name === "section_opened"),
-      (event) => String(event.metadata?.section ?? "")
-    )
-  );
-  const projects = toRankedMetrics(
-    groupCounts(
-      events.filter((event) => event.event_name === "project_opened"),
-      (event) => String(event.metadata?.title ?? event.metadata?.projectId ?? "")
-    )
-  );
-  const cta = toRankedMetrics(
-    groupCounts(
-      events.filter((event) => ctaEvents.has(event.event_name)),
-      (event) => event.event_name
-    )
-  );
+  const sections = sectionRows
+    .filter((row) => row.section)
+    .sort((a, b) => b.open_count - a.open_count)
+    .slice(0, 5)
+    .map((row) => ({
+      label: titleCase(row.section ?? ""),
+      value: Number(row.open_count)
+    }));
+  const projects = projectRows
+    .filter((row) => row.title || row.project_id)
+    .sort((a, b) => b.open_count - a.open_count)
+    .slice(0, 5)
+    .map((row) => ({
+      label: row.title ?? titleCase(row.project_id ?? ""),
+      value: Number(row.open_count)
+    }));
+  const cta = ctaRows
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5)
+    .map((row) => ({
+      label: titleCase(row.event_name),
+      value: Number(row.total)
+    }));
   const referrers = toRankedMetrics(
     groupCounts(sessions, (session) => {
       if (!session.referrer) {
@@ -264,17 +281,24 @@ export async function getDashboardData(): Promise<DashboardLoadResult> {
     `&source=eq.${encodeURIComponent(source)}` +
     "&order=started_at.desc" +
     `&limit=${sessionLimit}`;
+  const sectionQuery = `${baseUrl}/analytics_section_opens?select=section,open_count&order=open_count.desc`;
+  const projectQuery =
+    `${baseUrl}/analytics_project_opens?select=project_id,title,open_count&order=open_count.desc`;
+  const ctaQuery = `${baseUrl}/analytics_cta_events?select=event_name,total&order=total.desc`;
 
   try {
-    const [events, sessions] = await Promise.all([
+    const [events, sessions, sections, projects, cta] = await Promise.all([
       fetchSupabaseRows<AnalyticsEventRow>(eventQuery, serviceRoleKey),
-      fetchSupabaseRows<AnalyticsSessionRow>(sessionQuery, serviceRoleKey)
+      fetchSupabaseRows<AnalyticsSessionRow>(sessionQuery, serviceRoleKey),
+      fetchSupabaseRows<AnalyticsSectionOpensRow>(sectionQuery, serviceRoleKey),
+      fetchSupabaseRows<AnalyticsProjectOpensRow>(projectQuery, serviceRoleKey),
+      fetchSupabaseRows<AnalyticsCtaEventsRow>(ctaQuery, serviceRoleKey)
     ]);
 
     return {
-      snapshot: buildSnapshot(events, sessions),
+      snapshot: buildSnapshot(events, sessions, sections, projects, cta),
       source: "live",
-      note: `Live Supabase data loaded from ${source} analytics storage.`
+      note: `Live Supabase data loaded from Ascension analytics tables and views.`
     };
   } catch (error) {
     console.error("Unable to load live analytics data", error);

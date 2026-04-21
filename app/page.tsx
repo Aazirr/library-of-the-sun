@@ -1,5 +1,8 @@
 import { getDashboardData } from "@/lib/analytics/dashboard";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const panelDescriptions = [
   {
     eyebrow: "Attention map",
