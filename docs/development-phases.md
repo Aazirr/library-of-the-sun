@@ -10,9 +10,9 @@ Data trust comes before dashboard polish.
 
 ## Current Status
 
-- Active phase: Phase 3 - Query Layer And Metrics Definition
-- Last completed phase: Phase 2 - Ingestion API And Storage
-- Current focus: replace dashboard mock data with live Supabase reads and turn the first overview screen into a real analytics surface
+- Active phase: Phase 5 - Hardening And Launch Readiness
+- Last completed phase: Phase 4 - Dashboard UI
+- Current focus: harden the analytics website for real use with validation, access control, and launch readiness checks
 
 Current verification status:
 
@@ -109,8 +109,8 @@ Deliverables:
 Exit criteria:
 
 - [x] every V1 dashboard card is backed by a real query
-- [ ] metric definitions are written down and consistent
-- [ ] query results match manual spot checks
+- [x] metric definitions are written down and consistent
+- [x] query results match manual spot checks
 
 ## Phase 4: Dashboard UI
 
@@ -119,19 +119,19 @@ Ship a private dashboard that surfaces the most useful portfolio insights.
 
 Deliverables:
 
-- [ ] overview metrics section
-- [ ] engagement charts
-- [ ] section and project rankings
-- [ ] CTA analytics view
-- [ ] device and referrer panels
-- [ ] recent event feed
-- [ ] loading, empty, and error states
+- [x] overview metrics section
+- [x] engagement charts
+- [x] section and project rankings
+- [x] CTA analytics view
+- [x] device and referrer panels
+- [x] recent event feed
+- [x] loading, empty, and error states
 
 Exit criteria:
 
-- [ ] dashboard is usable on desktop and mobile
-- [ ] all V1 metrics render from real data
-- [ ] dashboard helps answer the success questions from scope
+- [x] dashboard is usable on desktop and mobile
+- [x] all V1 metrics render from real data
+- [x] dashboard helps answer the success questions from scope
 
 ## Phase 5: Hardening And Launch Readiness
 

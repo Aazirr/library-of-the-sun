@@ -5,13 +5,13 @@ const panelDescriptions = [
     eyebrow: "Attention map",
     title: "See how visitors move through Ascension",
     copy:
-      "This dashboard is focused on the questions from your shared analytics spec: who engages, what gets opened, where interest converts, and which portfolio pieces pull the most attention."
+      "This dashboard stays tightly focused on recruiter and portfolio behavior: who engages, what gets opened, where interest converts, and which work samples pull attention."
   },
   {
     eyebrow: "Shared contract",
     title: "Built on the same event model as the portfolio app",
     copy:
-      "The dashboard reads the same `analytics_events` and `analytics_sessions` data produced by Ascension, which keeps reporting aligned with the producer contract."
+      "The analytics website reads the same `analytics_events` and `analytics_sessions` records produced by Ascension, which keeps reporting aligned with the source app."
   }
 ];
 
@@ -44,12 +44,31 @@ function MetricCard({
   );
 }
 
+function EmptyState({
+  title,
+  copy
+}: {
+  title: string;
+  copy: string;
+}) {
+  return (
+    <div className="empty-state">
+      <strong>{title}</strong>
+      <p>{copy}</p>
+    </div>
+  );
+}
+
 function RankedList({
   title,
-  items
+  items,
+  emptyTitle,
+  emptyCopy
 }: {
   title: string;
   items: { label: string; value: number; delta?: string }[];
+  emptyTitle: string;
+  emptyCopy: string;
 }) {
   const maxValue = Math.max(1, ...items.map((item) => item.value));
 
@@ -62,25 +81,82 @@ function RankedList({
         </div>
       </div>
 
-      <div className="rank-list">
-        {items.map((item) => (
-          <article className="rank-row" key={item.label}>
-            <div className="rank-copy">
-              <strong>{item.label}</strong>
-              <span>{item.value} events</span>
-            </div>
-
-            <div className="rank-meta">
-              {item.delta ? <span className="delta-chip">{item.delta}</span> : null}
-              <div className="bar-track" aria-hidden="true">
-                <div
-                  className="bar-fill"
-                  style={{ width: `${(item.value / maxValue) * 100}%` }}
-                />
+      {items.length === 0 ? (
+        <EmptyState title={emptyTitle} copy={emptyCopy} />
+      ) : (
+        <div className="rank-list">
+          {items.map((item) => (
+            <article className="rank-row" key={item.label}>
+              <div className="rank-copy">
+                <strong>{item.label}</strong>
+                <span>{item.value} events</span>
               </div>
-            </div>
-          </article>
-        ))}
+
+              <div className="rank-meta">
+                {item.delta ? <span className="delta-chip">{item.delta}</span> : null}
+                <div className="bar-track" aria-hidden="true">
+                  <div
+                    className="bar-fill"
+                    style={{ width: `${(item.value / maxValue) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EngagementPanel({
+  interactionRate,
+  engagedVisitors,
+  totalVisitors,
+  averageSessionMinutes
+}: {
+  interactionRate: number;
+  engagedVisitors: number;
+  totalVisitors: number;
+  averageSessionMinutes: number;
+}) {
+  const inactiveVisitors = Math.max(totalVisitors - engagedVisitors, 0);
+  const averageSessionProgress = Math.min((averageSessionMinutes / 10) * 100, 100);
+
+  return (
+    <section className="panel engagement-panel">
+      <div className="panel-header">
+        <div>
+          <p className="eyebrow">Engagement quality</p>
+          <h2>Visitor intent breakdown</h2>
+        </div>
+        <span className="panel-note">{formatPercent(interactionRate)} interaction rate</span>
+      </div>
+
+      <div className="engagement-grid">
+        <article className="engagement-card">
+          <span>Engaged visitors</span>
+          <strong>{engagedVisitors}</strong>
+          <div className="bar-track" aria-hidden="true">
+            <div className="bar-fill" style={{ width: `${Math.min(interactionRate, 100)}%` }} />
+          </div>
+        </article>
+
+        <article className="engagement-card">
+          <span>Passive visitors</span>
+          <strong>{inactiveVisitors}</strong>
+          <div className="bar-track" aria-hidden="true">
+            <div className="bar-fill passive-fill" style={{ width: `${Math.max(100 - interactionRate, 0)}%` }} />
+          </div>
+        </article>
+
+        <article className="engagement-card">
+          <span>Average session quality</span>
+          <strong>{averageSessionMinutes.toFixed(1)} min</strong>
+          <div className="bar-track" aria-hidden="true">
+            <div className="bar-fill" style={{ width: `${averageSessionProgress}%` }} />
+          </div>
+        </article>
       </div>
     </section>
   );
@@ -99,8 +175,9 @@ export default async function HomePage() {
           <p className="eyebrow">Ascension Analytics</p>
           <h1>Portfolio intelligence with a product dashboard feel.</h1>
           <p className="hero-text">
-            The first live cut of the analytics website focuses on visitor engagement,
-            content attention, CTA performance, and a raw event feed for validation.
+            The dashboard now combines live analytics reads, product-style summary panels,
+            and validation views so you can spot both user behavior and data health in one
+            place.
           </p>
           <div className="hero-badges">
             <span>Source: portfolio</span>
@@ -114,6 +191,11 @@ export default async function HomePage() {
           <strong>{formatDate(snapshot.generatedAt)}</strong>
           <span>{note}</span>
         </aside>
+      </section>
+
+      <section className={`status-banner ${source === "live" ? "status-live" : "status-mock"}`}>
+        <strong>{source === "live" ? "Live reporting mode" : "Fallback reporting mode"}</strong>
+        <p>{note}</p>
       </section>
 
       <section className="panel-grid intro-grid">
@@ -150,6 +232,13 @@ export default async function HomePage() {
       </section>
 
       <section className="panel-grid analytics-grid">
+        <EngagementPanel
+          interactionRate={audience.interactionRate}
+          engagedVisitors={audience.engagedVisitors}
+          totalVisitors={audience.totalVisitors}
+          averageSessionMinutes={audience.averageSessionMinutes}
+        />
+
         <section className="panel timeline-panel">
           <div className="panel-header">
             <div>
@@ -157,29 +246,63 @@ export default async function HomePage() {
               <h2>Weekly interaction pulse</h2>
             </div>
             <span className="panel-note">
-              {source === "live" ? "Computed from live event data" : "Mock chart until Supabase is configured"}
+              {source === "live"
+                ? "Computed from live event data"
+                : "Mock chart until Supabase is configured"}
             </span>
           </div>
 
-          <div className="timeline-chart" aria-label="Weekly interaction chart">
-            {timeline.map((entry) => (
-              <div className="timeline-bar" key={entry.label}>
-                <span>{entry.value}</span>
-                <div
-                  className="timeline-bar-fill"
-                  style={{ height: `${(entry.value / maxTimelineValue) * 100}%` }}
-                />
-                <label>{entry.label}</label>
-              </div>
-            ))}
-          </div>
+          {timeline.every((entry) => entry.value === 0) ? (
+            <EmptyState
+              title="No recent event volume"
+              copy="Once Ascension records activity for the recent window, this chart will start showing the daily interaction pulse."
+            />
+          ) : (
+            <div className="timeline-chart" aria-label="Weekly interaction chart">
+              {timeline.map((entry) => (
+                <div className="timeline-bar" key={entry.label}>
+                  <span>{entry.value}</span>
+                  <div
+                    className="timeline-bar-fill"
+                    style={{ height: `${(entry.value / maxTimelineValue) * 100}%` }}
+                  />
+                  <label>{entry.label}</label>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
-        <RankedList title="Section opens" items={sections} />
-        <RankedList title="Project attention" items={projects} />
-        <RankedList title="CTA performance" items={cta} />
-        <RankedList title="Traffic sources" items={referrers} />
-        <RankedList title="Device mix" items={devices} />
+        <RankedList
+          title="Section opens"
+          items={sections}
+          emptyTitle="No section opens yet"
+          emptyCopy="Section analytics will appear here when users begin opening portfolio categories."
+        />
+        <RankedList
+          title="Project attention"
+          items={projects}
+          emptyTitle="No project attention yet"
+          emptyCopy="Project ranking data will appear after portfolio visitors start opening project details."
+        />
+        <RankedList
+          title="CTA performance"
+          items={cta}
+          emptyTitle="No CTA clicks yet"
+          emptyCopy="Recruiter and outbound action metrics will populate once CTA events are stored."
+        />
+        <RankedList
+          title="Traffic sources"
+          items={referrers}
+          emptyTitle="No referrer data yet"
+          emptyCopy="Referrer breakdowns will appear once sessions are recorded with inbound sources."
+        />
+        <RankedList
+          title="Device mix"
+          items={devices}
+          emptyTitle="No device mix yet"
+          emptyCopy="Device distribution will appear after session records accumulate."
+        />
       </section>
 
       <section className="panel live-panel">
@@ -195,28 +318,35 @@ export default async function HomePage() {
           </span>
         </div>
 
-        <div className="event-table">
-          <div className="event-table-head">
-            <span>Event</span>
-            <span>Visitor</span>
-            <span>Device</span>
-            <span>Referrer</span>
-            <span>Timestamp</span>
-          </div>
+        {liveFeed.length === 0 ? (
+          <EmptyState
+            title="No recent events yet"
+            copy="The recent event feed will populate once live analytics events are available for this source."
+          />
+        ) : (
+          <div className="event-table">
+            <div className="event-table-head">
+              <span>Event</span>
+              <span>Visitor</span>
+              <span>Device</span>
+              <span>Referrer</span>
+              <span>Timestamp</span>
+            </div>
 
-          {liveFeed.map((entry) => (
-            <article className="event-row" key={`${entry.sessionId}-${entry.timestamp}`}>
-              <div>
-                <strong>{entry.event}</strong>
-                <p>{JSON.stringify(entry.metadata ?? {})}</p>
-              </div>
-              <span>{entry.visitorId.slice(0, 8)}</span>
-              <span>{entry.deviceType}</span>
-              <span>{entry.referrer ?? "Direct"}</span>
-              <span>{formatDate(entry.timestamp)}</span>
-            </article>
-          ))}
-        </div>
+            {liveFeed.map((entry) => (
+              <article className="event-row" key={`${entry.sessionId}-${entry.timestamp}`}>
+                <div>
+                  <strong>{entry.event}</strong>
+                  <p>{JSON.stringify(entry.metadata ?? {})}</p>
+                </div>
+                <span>{entry.visitorId.slice(0, 8)}</span>
+                <span>{entry.deviceType}</span>
+                <span>{entry.referrer ?? "Direct"}</span>
+                <span>{formatDate(entry.timestamp)}</span>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );
