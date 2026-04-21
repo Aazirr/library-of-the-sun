@@ -9,6 +9,7 @@ Starter analytics dashboard for the Ascension portfolio webapp.
 - a first dashboard UI for visitors, engagement, sections, projects, CTA activity, referrers, and a recent event feed
 - a server-side live query layer for Supabase-backed analytics reads
 - mock analytics fallback data when local read credentials are not configured
+- event-derived recovery for visitor and session summaries when `analytics_sessions` is incomplete
 
 ## Run Locally
 
@@ -30,6 +31,10 @@ ANALYTICS_SOURCE=portfolio
 ```
 
 If these values are missing, the dashboard will fall back to mock data so the UI still works locally.
+
+When live reads are configured, the dashboard prefers `analytics_sessions` for visitor/session
+metrics but can infer missing session rows from `analytics_events` so older ingestion gaps do not
+force the overview cards to zero.
 
 ## Next Build Steps
 

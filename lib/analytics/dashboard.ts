@@ -13,6 +13,7 @@ export type DashboardLoadResult = {
   snapshot: DashboardSnapshot;
   source: DashboardDataSource;
   note: string;
+  warning?: string;
 };
 
 type AnalyticsEventRow = {
@@ -53,6 +54,12 @@ type AnalyticsProjectOpensRow = {
 type AnalyticsCtaEventsRow = {
   event_name: string;
   total: number;
+};
+
+type DashboardBuildMeta = {
+  inferredSessionCount: number;
+  missingSessionCount: number;
+  usedInferredSessions: boolean;
 };
 
 function getRequiredEnv(name: string) {
@@ -146,6 +153,60 @@ function computeAverageSessionMinutes(sessions: AnalyticsSessionRow[]) {
   return Number((totalMinutes / sessions.length).toFixed(1));
 }
 
+function inferSessionsFromEvents(events: AnalyticsEventRow[]): AnalyticsSessionRow[] {
+  const inferred = new Map<string, AnalyticsSessionRow>();
+
+  for (const event of events) {
+    const existing = inferred.get(event.session_id);
+
+    if (!existing) {
+      inferred.set(event.session_id, {
+        id: event.session_id,
+        visitor_id: event.visitor_id,
+        started_at: event.occurred_at,
+        last_seen_at: event.occurred_at,
+        landing_path: event.path,
+        referrer: event.referrer,
+        device_type: event.device_type,
+        source: event.source
+      });
+      continue;
+    }
+
+    if (new Date(event.occurred_at).getTime() < new Date(existing.started_at).getTime()) {
+      existing.started_at = event.occurred_at;
+      existing.landing_path = event.path;
+    }
+
+    if (new Date(event.occurred_at).getTime() > new Date(existing.last_seen_at).getTime()) {
+      existing.last_seen_at = event.occurred_at;
+    }
+
+    existing.referrer = existing.referrer ?? event.referrer;
+    existing.device_type = existing.device_type === "unknown" ? event.device_type : existing.device_type;
+  }
+
+  return [...inferred.values()];
+}
+
+function mergeSessionsWithEventFallback(
+  sessions: AnalyticsSessionRow[],
+  events: AnalyticsEventRow[]
+): { sessions: AnalyticsSessionRow[]; meta: DashboardBuildMeta } {
+  const inferredSessions = inferSessionsFromEvents(events);
+  const liveSessionsById = new Map(sessions.map((session) => [session.id, session]));
+  const missingSessions = inferredSessions.filter((session) => !liveSessionsById.has(session.id));
+
+  return {
+    sessions: [...sessions, ...missingSessions],
+    meta: {
+      inferredSessionCount: inferredSessions.length,
+      missingSessionCount: missingSessions.length,
+      usedInferredSessions: missingSessions.length > 0
+    }
+  };
+}
+
 function toAnalyticsEvent(row: AnalyticsEventRow): AnalyticsEvent {
   return {
     event: row.event_name,
@@ -167,8 +228,9 @@ function buildSnapshot(
   sectionRows: AnalyticsSectionOpensRow[],
   projectRows: AnalyticsProjectOpensRow[],
   ctaRows: AnalyticsCtaEventsRow[]
-): DashboardSnapshot {
-  const totalVisitors = new Set(sessions.map((session) => session.visitor_id)).size;
+): { snapshot: DashboardSnapshot; meta: DashboardBuildMeta } {
+  const { sessions: normalizedSessions, meta } = mergeSessionsWithEventFallback(sessions, events);
+  const totalVisitors = new Set(normalizedSessions.map((session) => session.visitor_id)).size;
   const engagedVisitors = new Set(
     events
       .filter((event) => event.event_name === "graph_interaction_started")
@@ -201,7 +263,7 @@ function buildSnapshot(
       value: Number(row.total)
     }));
   const referrers = toRankedMetrics(
-    groupCounts(sessions, (session) => {
+    groupCounts(normalizedSessions, (session) => {
       if (!session.referrer) {
         return "Direct";
       }
@@ -214,26 +276,29 @@ function buildSnapshot(
     })
   );
   const devices = toRankedMetrics(
-    groupCounts(sessions, (session) => session.device_type),
+    groupCounts(normalizedSessions, (session) => session.device_type),
     titleCase,
     4
   );
 
   return {
-    generatedAt: new Date().toISOString(),
-    audience: {
-      totalVisitors,
-      engagedVisitors,
-      interactionRate,
-      averageSessionMinutes: computeAverageSessionMinutes(sessions)
+    snapshot: {
+      generatedAt: new Date().toISOString(),
+      audience: {
+        totalVisitors,
+        engagedVisitors,
+        interactionRate,
+        averageSessionMinutes: computeAverageSessionMinutes(normalizedSessions)
+      },
+      cta,
+      sections,
+      projects,
+      referrers,
+      devices,
+      timeline: buildTimeline(events),
+      liveFeed: events.slice(0, 10).map(toAnalyticsEvent)
     },
-    cta,
-    sections,
-    projects,
-    referrers,
-    devices,
-    timeline: buildTimeline(events),
-    liveFeed: events.slice(0, 10).map(toAnalyticsEvent)
+    meta
   };
 }
 
@@ -256,12 +321,21 @@ async function fetchSupabaseRows<T>(path: string, serviceRoleKey: string) {
 export async function getDashboardData(): Promise<DashboardLoadResult> {
   const supabaseUrl = getRequiredEnv("SUPABASE_URL");
   const serviceRoleKey = getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const allowMockFallback =
+    process.env.NODE_ENV !== "production" || process.env.ALLOW_ANALYTICS_MOCK_FALLBACK === "true";
 
   if (!supabaseUrl || !serviceRoleKey) {
+    if (!allowMockFallback) {
+      throw new Error(
+        "Supabase analytics read configuration is missing. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+      );
+    }
+
     return {
       snapshot: mockDashboardSnapshot,
       source: "mock",
-      note: "Mock data is showing because this repo does not have Supabase read credentials configured yet."
+      note: "Mock data is showing because this repo does not have Supabase read credentials configured yet.",
+      warning: "Live analytics env vars are missing, so the dashboard is using local mock fallback."
     };
   }
 
@@ -294,19 +368,31 @@ export async function getDashboardData(): Promise<DashboardLoadResult> {
       fetchSupabaseRows<AnalyticsProjectOpensRow>(projectQuery, serviceRoleKey),
       fetchSupabaseRows<AnalyticsCtaEventsRow>(ctaQuery, serviceRoleKey)
     ]);
+    const { snapshot, meta } = buildSnapshot(events, sessions, sections, projects, cta);
+    const diagnostics = `${events.length} events, ${sessions.length} stored sessions`;
+    const warning =
+      meta.usedInferredSessions
+        ? `Recovered ${meta.missingSessionCount} session records from event history because analytics_sessions is not fully populated yet.`
+        : undefined;
 
     return {
-      snapshot: buildSnapshot(events, sessions, sections, projects, cta),
+      snapshot,
       source: "live",
-      note: `Live Supabase data loaded from Ascension analytics tables and views.`
+      note: `Live Supabase data loaded from Ascension analytics tables and views. Current read returned ${diagnostics}.`,
+      warning
     };
   } catch (error) {
     console.error("Unable to load live analytics data", error);
 
+    if (!allowMockFallback) {
+      throw new Error("Live analytics query failed. Check Supabase credentials, views, and runtime logs.");
+    }
+
     return {
       snapshot: mockDashboardSnapshot,
       source: "mock",
-      note: "Live query failed, so the dashboard fell back to mock data for now."
+      note: "Live query failed, so the dashboard fell back to mock data for now.",
+      warning: "The live analytics read failed. This fallback only exists to keep local development moving."
     };
   }
 }

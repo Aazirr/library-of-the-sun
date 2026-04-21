@@ -20,6 +20,7 @@ Current verification status:
 - payload normalization is working in the local fallback path
 - `Ascension` production is already writing live analytics data to Supabase
 - `Library of the Sun` now has a live-read dashboard data layer with mock fallback when local read credentials are missing
+- `Library of the Sun` can recover top-line visitor metrics from `analytics_events` if historical `analytics_sessions` rows are incomplete
 
 ## Repo Context
 

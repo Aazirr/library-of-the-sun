@@ -113,6 +113,7 @@ Responsibilities:
 - present portfolio-specific metrics
 - support comparisons by timeframe, device, and referrer
 - expose both overview-level and validation-level views
+- recover visitor/session summaries from raw events if historical session rows are incomplete
 
 The dashboard should have two mental modes:
 
@@ -140,6 +141,10 @@ The dashboard should start with direct SQL-backed aggregate queries such as:
 - CTA counts by explicit event names
 - referrer counts
 - device counts
+
+For resilience, the dashboard may derive session-level summaries from `analytics_events` when
+`analytics_sessions` is partially missing. That fallback is for read robustness only. The
+producer app should still keep writing both raw events and session rows.
 
 ## Security And Privacy
 

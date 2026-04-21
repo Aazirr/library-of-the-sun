@@ -166,7 +166,7 @@ function EngagementPanel({
 }
 
 export default async function HomePage() {
-  const { note, snapshot, source } = await getDashboardData();
+  const { note, snapshot, source, warning } = await getDashboardData();
   const { audience, cta, devices, liveFeed, projects, referrers, sections, timeline } =
     snapshot;
   const maxTimelineValue = Math.max(1, ...timeline.map((entry) => entry.value));
@@ -200,6 +200,13 @@ export default async function HomePage() {
         <strong>{source === "live" ? "Live reporting mode" : "Fallback reporting mode"}</strong>
         <p>{note}</p>
       </section>
+
+      {warning ? (
+        <section className="status-banner status-warning">
+          <strong>Warning</strong>
+          <p>{warning}</p>
+        </section>
+      ) : null}
 
       <section className="panel-grid intro-grid">
         {panelDescriptions.map((panel) => (
